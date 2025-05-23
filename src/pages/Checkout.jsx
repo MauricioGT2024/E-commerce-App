@@ -27,6 +27,8 @@ export default function Checkout({ items, userId, clearCart, onNavigate }) {
     } else {
       setMessage("✅ Pedido realizado con éxito 🎉");
       clearCart();
+      await supabase.from("carts").delete().eq("user_id", session.user.id);
+
       setOrderCompleted(true);
     }
 

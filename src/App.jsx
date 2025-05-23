@@ -15,10 +15,17 @@ function App() {
   const [page, setPage] = useState("catalog");
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [cartItems, setCartItems] = useState([]);
-  const [view, setView] = useState("catalog");
-  
 
+  const [view, setView] = useState("catalog");
+
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cartItems");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   useEffect(() => {
     const savedCart = localStorage.getItem("cartItems");
     if (savedCart) {
@@ -34,18 +41,15 @@ function App() {
     localStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
 
-
- const handleGoToCatalog = () => {
-   if (typeof onNavigate === "function") {
-     onNavigate("catalog");
-   }
- };
+  
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
     setRole(null);
     setView("catalog");
     setCartItems([]);
+    await supabase.from("carts").delete().eq("user_id", session.user.id);
+
   };
   // 👉 Obtener sesión y rol
   useEffect(() => {
