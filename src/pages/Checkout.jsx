@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { supabase } from "../services/supabaseClient";
-import { useNavigate } from "react-router-dom"; // si usás router, si no, ignoralo
 
-export default function Checkout({ items, userId, clearCart }) {
+export default function Checkout({ items, userId, clearCart, onNavigate }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [orderCompleted, setOrderCompleted] = useState(false);
 
   const total = items.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -22,37 +22,82 @@ export default function Checkout({ items, userId, clearCart }) {
     ]);
 
     if (error) {
-      setMessage("Error al realizar el pedido: " + error.message);
+      setMessage("❌ Error al realizar el pedido: " + error.message);
+      setOrderCompleted(false);
     } else {
       setMessage("✅ Pedido realizado con éxito 🎉");
       clearCart();
+      setOrderCompleted(true);
     }
 
     setLoading(false);
   };
 
+  const handleGoToCatalog = () => {
+    if (typeof onNavigate === "function") {
+      clearCart();
+      onNavigate("catalog"); // Llamas a onNavigate con el nombre de la página
+    }
+  };
+
   return (
-    <div className="p-8 max-w-xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Resumen del pedido</h1>
-      <ul className="mb-4">
+    <div className="p-8 max-w-xl mx-auto bg-white rounded-2xl shadow-lg">
+      <h1 className="text-3xl font-extrabold mb-6 text-center text-blue-700">
+        Resumen del pedido
+      </h1>
+
+      <ul className="mb-6 divide-y divide-gray-200 max-h-72 overflow-y-auto">
         {items.map((item) => (
-          <li key={item.id} className="flex justify-between mb-1">
-            <span>
-              {item.name} × {item.quantity}
+          <li key={item.id} className="flex justify-between py-3">
+            <span className="font-medium text-gray-900">
+              {item.name} ×{" "}
+              <span className="text-gray-600">{item.quantity}</span>
             </span>
-            <span>${(item.price * item.quantity).toFixed(2)}</span>
+            <span className="font-semibold text-gray-900">
+              ${(item.price * item.quantity).toFixed(2)}
+            </span>
           </li>
         ))}
       </ul>
-      <p className="font-semibold text-lg mb-4">Total: ${total.toFixed(2)}</p>
-      <button
-        onClick={handleCheckout}
-        disabled={loading}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-      >
-        {loading ? "Procesando..." : "Confirmar pedido"}
-      </button>
-      {message && <p className="mt-4 text-green-600">{message}</p>}
+
+      <p className="text-xl font-bold mb-6 text-right text-gray-800">
+        Total: <span className="text-blue-600">${total.toFixed(2)}</span>
+      </p>
+
+      {!orderCompleted ? (
+        <button
+          onClick={handleCheckout}
+          disabled={loading}
+          className={`w-full py-3 rounded-full font-semibold text-white transition-colors duration-300
+            ${
+              loading
+                ? "bg-blue-300 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }
+          `}
+          aria-busy={loading}
+        >
+          {loading ? "Procesando..." : "Confirmar pedido"}
+        </button>
+      ) : (
+        <button
+          onClick={handleGoToCatalog}
+          className="w-full py-3 rounded-full font-semibold text-blue-700 border border-blue-700 hover:bg-blue-50 transition-colors duration-300"
+        >
+          Volver al catálogo
+        </button>
+      )}
+
+      {message && (
+        <p
+          className={`mt-6 text-center font-medium ${
+            message.startsWith("❌") ? "text-red-600" : "text-green-600"
+          }`}
+          role="alert"
+        >
+          {message}
+        </p>
+      )}
     </div>
   );
 }

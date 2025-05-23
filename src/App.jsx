@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./services/supabaseClient";
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import Auth from "./pages/Auth";
 import AdminPanel from "./pages/AdminPanel";
 import Catalog from "./pages/Catalog";
@@ -12,13 +12,34 @@ import Navbar from "./components/Navbar";
 
 function App() {
   const [session, setSession] = useState(null);
+  const [page, setPage] = useState("catalog");
   const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cartItems, setCartItems] = useState([]);
-  const [checkoutMode, setCheckoutMode] = useState(false);
-  const [viewingOrders, setViewingOrders] = useState(false);
   const [view, setView] = useState("catalog");
+  
 
+  useEffect(() => {
+    const savedCart = localStorage.getItem("cartItems");
+    if (savedCart) {
+      try {
+        setCartItems(JSON.parse(savedCart));
+      } catch (e) {
+        console.error("Error parsing cartItems from localStorage:", e);
+        localStorage.removeItem("cartItems"); // limpiar clave corrupta
+      }
+    }
+  }, []);
+  useEffect(() => {
+    localStorage.setItem("cartItems", JSON.stringify(cartItems));
+  }, [cartItems]);
+
+
+ const handleGoToCatalog = () => {
+   if (typeof onNavigate === "function") {
+     onNavigate("catalog");
+   }
+ };
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -74,6 +95,11 @@ function App() {
       listener.subscription.unsubscribe();
     };
   }, []);
+  const clearCart = () => setCartItems([]);
+
+  const goToCatalog = () => {
+    setPage("catalog");
+  };
 
   // 👉 Funciones para el carrito
   const addToCart = (product) => {
@@ -100,38 +126,64 @@ function App() {
   if (!session) return <Auth />;
 
   if (role === "admin") return <AdminPanel />;
-if (role === "cliente") {
-  return (
-    <>
-      <ToastContainer />
-      <Navbar onNavigate={setView} currentView={view} onLogout={handleLogout} />
 
-      {view === "catalog" && <Catalog addToCart={addToCart} />}
+  if (role === "cliente") {
+    const renderView = () => {
+      switch (view) {
+        case "catalog":
+          return <Catalog addToCart={addToCart} />;
+        case "cart":
+          return (
+            <Cart
+              items={cartItems}
+              removeFromCart={removeFromCart}
+              goToCheckout={() => setView("checkout")}
+              goToOrders={() => setView("orders")}
+            />
+          );
+        case "orders":
+          return <Orders userId={session.user.id} />;
+        case "checkout":
+          return (
+            <Checkout
+              items={cartItems}
+              userId={session.user.id}
+              clearCart={() => setCartItems([])}
+              onNavigate={setView} // PASA setView como onNavigate
+            />
+          );
+        default: {
+          page === "checkout" && (
+            <Checkout
+              items={cartItems}
+              userId={userId}
+              clearCart={clearCart}
+              onNavigate={handleNavigate} // <-- Aquí pasas la función
+            />
+          );
+        }
+      }
+    };
 
-      {view === "cart" && (
-        <Cart
-          items={cartItems}
+    return (
+      <>
+        <ToastContainer
+          position="bottom-right"
+          autoClose={5000}
+          hideProgressBar
+        />
+
+        <Navbar
+          onNavigate={setView}
+          currentView={view}
+          onLogout={handleLogout} // tu función de logout
+          cartItems={cartItems}
           removeFromCart={removeFromCart}
-          goToCheckout={() => setView("checkout")}
-          goToOrders={() => setView("orders")}
         />
-      )}
-
-      {view === "orders" && <Orders userId={session.user.id} />}
-
-      {view === "checkout" && (
-        <Checkout
-          items={cartItems}
-          userId={session.user.id}
-          clearCart={() => setCartItems([])}
-        />
-      )}
-    </>
-  );
-}
-
-
-
+        {renderView()}
+      </>
+    );
+  }
 
   return (
     <p className="p-8 text-center text-red-600">
@@ -139,5 +191,4 @@ if (role === "cliente") {
     </p>
   );
 }
-
 export default App;
